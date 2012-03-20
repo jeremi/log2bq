@@ -32,7 +32,7 @@ credentials = AppAssertionCredentials(
 
 bqproject = '34784107592'
 bqdataset = 'logs'
-gsbucketname = 'log2bq-logs'
+gsbucketname = 'log2bq_logs'
 
 http = credentials.authorize(httplib2.Http(memcache))
 service = build('bigquery','v2',http=http)
@@ -62,8 +62,7 @@ class Log2Gs(base_handler.PipelineBase):
             "end_time": end_time,
             "version_ids": version_ids,
             "filesystem": "gs",
-            "gs_bucket_name": gsbucketname,
-            "gs_acl": "project-private"
+            "gs_bucket_name": gsbucketname
             },
         shards=16)
 
