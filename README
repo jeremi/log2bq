@@ -1,0 +1,11 @@
+- copy log2bq to your application
+- open Google APIs console
+- enable BigQuery API
+- enable Google Storage
+- enable billing
+- in teams add APPID@appspot.gserviceaccount.com with the role editor
+- edit main.py set bqproject to your project id
+- go to Google Big Query dashbaord create a new dataset
+- edit main.py set bqdataset to your dataset name
+- go to Google Cloud Storage dashboard create a new bucket name
+- edit main.py set gsbucketname to your bucket name

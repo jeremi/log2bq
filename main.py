@@ -30,8 +30,9 @@ from mapreduce import base_handler, mapreduce_pipeline
 credentials = AppAssertionCredentials(
     scope='https://www.googleapis.com/auth/bigquery')
 
-bqproject = '814690009706'
-bqdataset = 'appenginelogs'
+bqproject = '34784107592'
+bqdataset = 'logs'
+gsbucketname = 'log2bq-logs'
 
 http = credentials.authorize(httplib2.Http(memcache))
 service = build('bigquery','v2',http=http)
@@ -41,9 +42,9 @@ class Log2Bq(base_handler.PipelineBase):
   """
 
   def run(self, start_time, end_time, version_ids):
-    output = yield Log2Gs(start_time, end_time, version_ids)
+    files = yield Log2Gs(start_time, end_time, version_ids)
     date = time.strftime("%Y%m%d", time.localtime(start_time))
-    yield Gs2Bq(date, output)
+    yield Gs2Bq(date, files)
 
 class Log2Gs(base_handler.PipelineBase):
   """A pipeline to ingest log as CSV in Google Storage
@@ -61,7 +62,7 @@ class Log2Gs(base_handler.PipelineBase):
             "end_time": end_time,
             "version_ids": version_ids,
             "filesystem": "gs",
-            "gs_bucket_name": "appenginelogs",
+            "gs_bucket_name": gsbucketname,
             "gs_acl": "project-private"
             },
         shards=16)
@@ -70,11 +71,10 @@ class Gs2Bq(base_handler.PipelineBase):
   """A pipeline to injest log csv from Google Storage to Google  Big Query.
   """
 
-  def run(self, date, output):
-    logging.debug("output is %s" % str(output))
+  def run(self, date, files):
     jobs = service.jobs()
     table = 'requestlogs_%s' % date
-    gspaths = [s.replace('/gs/', 'gs://') for s in output]
+    gspaths = [f.replace('/gs/', 'gs://') for f in files]
     result = jobs.insert(projectId=bqproject,
                          body=jobData(table, gspaths)).execute()
     logging.debug("bigquery ingestion result is %s" % str(result))
