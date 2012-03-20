@@ -76,8 +76,18 @@ class Gs2Bq(base_handler.PipelineBase):
     gspaths = [f.replace('/gs/', 'gs://') for f in files]
     result = jobs.insert(projectId=bqproject,
                          body=jobData(table, gspaths)).execute()
-    logging.debug("bigquery ingestion result is %s" % str(result))
-    return result
+    logging.debug(result)
+    yield BqStatusCheck(result['jobReference']['jobId'])
+
+class BqStatusCheck(base_handler.PipelineBase):
+  def run(self, job):
+    jobs = service.jobs()
+    status = jobs.get(projectId=bqproject,
+                      jobId=job).execute()
+    logging.debug(status)
+    if status['status']['state'] == 'PENDING' or status['status']['state'] == 'RUNNING':
+      time.sleep(10)
+      yield BqStatusCheck(job)
 
 def log2csv(l):
   """Convert log API RequestLog object to csv."""
