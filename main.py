@@ -85,9 +85,7 @@ class BqCheck(base_handler.PipelineBase):
     jobs = service.jobs()
     status = jobs.get(projectId=bqproject,
                       jobId=job).execute()
-    logging.debug(status)
     if status['status']['state'] == 'PENDING' or status['status']['state'] == 'RUNNING':
-      time.sleep(10)
       delay = yield pipeline.common.Delay(seconds=10)
       with pipeline.After(delay):
         yield BqCheck(job)
