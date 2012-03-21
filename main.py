@@ -26,6 +26,7 @@ import webapp2
 from apiclient.discovery import build
 from oauth2client.appengine import AppAssertionCredentials
 from mapreduce import base_handler, mapreduce_pipeline
+from mapreduce.lib import pipeline
 
 credentials = AppAssertionCredentials(
     scope='https://www.googleapis.com/auth/bigquery')
@@ -77,9 +78,9 @@ class Gs2Bq(base_handler.PipelineBase):
     result = jobs.insert(projectId=bqproject,
                          body=jobData(table, gspaths)).execute()
     logging.debug(result)
-    yield BqStatusCheck(result['jobReference']['jobId'])
+    yield BqCheck(result['jobReference']['jobId'])
 
-class BqStatusCheck(base_handler.PipelineBase):
+class BqCheck(base_handler.PipelineBase):
   def run(self, job):
     jobs = service.jobs()
     status = jobs.get(projectId=bqproject,
@@ -87,7 +88,11 @@ class BqStatusCheck(base_handler.PipelineBase):
     logging.debug(status)
     if status['status']['state'] == 'PENDING' or status['status']['state'] == 'RUNNING':
       time.sleep(10)
-      yield BqStatusCheck(job)
+      delay = yield pipeline.common.Delay(seconds=10)
+      with pipeline.After(delay):
+        yield BqCheck(job)
+    else:
+      yield pipeline.common.Return(status)
 
 def log2csv(l):
   """Convert log API RequestLog object to csv."""
