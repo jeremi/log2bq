@@ -3,10 +3,11 @@
   <head>
     <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+    <style>
+    </style>
   </head>
   <body>
     <button id="start">start pipeline</button>
-    <a id="pipeline"></a>
     <ul id="messages">
     </ul>
     <script type="text/javascript">
@@ -20,17 +21,16 @@
           if (message.data != last_message) {
               progress = 0;
               last_message = message.data;
-              last_li = $("<li>").text(message.data).appendTo("#messages");
+              last_li = $("<li>").html(message.data).appendTo("#messages");
 	  } else {
 	      progress = (progress + 1) % 4;
-	      last_li.text(last_message + ' ' +  spinner[progress]);
+	      last_li.html(last_message + ' ' +  spinner[progress]);
 	  }
       };
       $("#start").click(function() {
-	$.get("/start", function(data) {
-	    $("#start").hide();
-	    $("#pipeline").text("pipeline started").attr("href", data);
-	})
+	$.post("/start", function() {
+	  $(this).hide();
+	});
       });
     </script>
   </body>
