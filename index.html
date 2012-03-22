@@ -1,37 +1,53 @@
 <!doctype html>
 <html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
     <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+    <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
+    <link href="bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
     <style>
+      .label {
+      text-transform: capitalize;
+      }
+      ul {
+      list-style-type: none;
+      margin-left: 0;
+      }
     </style>
   </head>
   <body>
-    <button id="start">start pipeline</button>
-    <ul id="messages">
-    </ul>
-    <script type="text/javascript">
-      var channel_token = "{{ channel_token }}";
-      var channel = new goog.appengine.Channel(channel_token);
-      var socket = channel.open();
-      var last_message, last_li;
-      var spinner = ["-", "\\", "|", "/"];
-      var progress = 0;
-      socket.onmessage = function(message) {
-          if (message.data != last_message) {
-              progress = 0;
-              last_message = message.data;
-              last_li = $("<li>").html(message.data).appendTo("#messages");
-	  } else {
-	      progress = (progress + 1) % 4;
-	      last_li.html(last_message + ' ' +  spinner[progress]);
-	  }
-      };
-      $("#start").click(function() {
-	$.post("/start", function() {
-	  $(this).hide();
-	});
-      });
-    </script>
+    <div class="container hero-unit">
+      <h1>log2bq</h1>
+      <p>a simple demo of App Engine log ingestion into BigQuery</p>
+      <p>
+	<button id="start" class="btn">start pipeline</button>
+	<ul id="messages">
+	</ul>
+      </p>
+      <script type="text/javascript">
+	  var channel_token = "{{ channel_token }}";
+	  var channel = new goog.appengine.Channel(channel_token);
+	  var socket = channel.open();
+	  var last_message, last_li;
+	  var spinner = ["-", "\\", "|", "/"];
+	  var progress = 0;
+	  socket.onmessage = function(message) {
+	      if (message.data != last_message) {
+		  progress = 0;
+		  last_message = message.data;
+		  last_li = $("<li>").html(message.data).appendTo("#messages");
+	      } else {
+		  progress++;
+		  last_li.html(last_message + "<span class='badge badge-warning'>" + progress + "</span>");
+	      }
+	  };
+	  $("#start").click(function() {
+	    $.post("/start", function() {
+	      $("#start").hide();
+	    });
+	  });
+      </script>
+    </div>
   </body>
 </html>

@@ -55,12 +55,9 @@ class Log2Bq(base_handler.PipelineBase):
   """
 
   def run(self, start_time, end_time, version_ids):
-    message('ae://logs?version={{ version }}&start={{ start }}&end={{ end }} > bq://{{ dataset }} <a href="{{ pipeline }}">pipeline</a> started',
-            version=version_ids[0],
-            start=start_time,
-            end=end_time,
+    message('<span class="label label-info">started</span> ae://logs <i class="icon-arrow-right"></i> bq://{{ dataset }} <a href="{{ pipeline }}">pipeline</a>',
             dataset=bqdataset,
-            pipeline="%s/status?root=%s" % (self.base_path , self.pipeline_id))
+            pipeline="%s/status?root=%s#pipeline-%s" % (self.base_path, self.root_pipeline_id, self.pipeline_id))
     files = yield Log2Gs(start_time, end_time, version_ids)
     date = time.strftime("%Y%m%d", time.localtime(start_time))
     yield Gs2Bq(date, files)
@@ -70,11 +67,9 @@ class Log2Gs(base_handler.PipelineBase):
   """
 
   def run(self, start_time, end_time, version_ids):
-    message('ae://logs?version={{ version }}&start={{ start }}&end={{ end }} > gs://{{ bucket }}',
-            version=version_ids[0],
-            start=start_time,
-            end=end_time,
-            bucket=gsbucketname)
+    message('<span class="label label-info">started</span> ae://logs <i class="icon-arrow-right"></i> gs://{{ bucket }} <a href="{{ pipeline }}">pipeline</a>',
+            bucket=gsbucketname,
+            pipeline="%s/status?root=%s#pipeline-%s" % (self.base_path, self.root_pipeline_id, self.pipeline_id))
     yield mapreduce_pipeline.MapperPipeline(
         "log2bq",
         "main.log2csv",
@@ -91,7 +86,7 @@ class Log2Gs(base_handler.PipelineBase):
 
 def log2csv(l):
   """Convert log API RequestLog object to csv."""
-  message('MapperPipeline.log2csv')
+  message('<span class="label label-warning">pending</span> MapperPipeline.log2csv')
   yield '%s,%s,%s,%s,%s,%s,"%s"\n' % (l.start_time, l.method, l.resource,
                                       l.status, l.latency, l.response_size,
                                       l.user_agent)
@@ -106,11 +101,11 @@ class Gs2Bq(base_handler.PipelineBase):
     gspaths = [f.replace('/gs/', 'gs://') for f in files]
     result = jobs.insert(projectId=bqproject,
                          body=jobData(table, gspaths)).execute()
-    message('{{ gs }} > bq://{{ dataset }}/{{ table }} [bq://jobs/{{ job }}]',
+    message('<span class="label label-info">started</span> {{ gs }} <i class="icon-arrow-right"></i> bq://{{ dataset }}/{{ table }} <a href="{{ pipeline }}">pipeline</a>',
             gs=gspaths[0],
             dataset=bqdataset,
             table=table,
-            job=result['jobReference']['jobId'])
+            pipeline="%s/status?root=%s#pipeline-%s" % (self.base_path, self.root_pipeline_id, self.pipeline_id))
     yield BqCheck(result['jobReference']['jobId'])
 
 class BqCheck(base_handler.PipelineBase):
@@ -119,15 +114,18 @@ class BqCheck(base_handler.PipelineBase):
     status = jobs.get(projectId=bqproject,
                       jobId=job).execute()
 
-    message('[bq://jobs/{{ job }}]: {{ status }}',
-            job=job,
-            status=status['status']['state'])
-
     if status['status']['state'] == 'PENDING' or status['status']['state'] == 'RUNNING':
+      message('<span class="label label-warning">{{ status }}</span> bq://jobs/{{ job }}',
+              job=job,
+              status=status['status']['state'].lower())
       delay = yield pipeline.common.Delay(seconds=1)
       with pipeline.After(delay):
         yield BqCheck(job)
     else:
+      message('<span class="label label-success">{{ status }}</span> bq://jobs/{{ job }} <a href="{{ pipeline }}">pipeline</a>',
+              job=job,
+              status=status['status']['state'].lower(),
+              pipeline="%s/status?root=%s#pipeline-%s" % (self.base_path, self.root_pipeline_id, self.pipeline_id))
       yield pipeline.common.Return(status)
 
 class MainHandler(webapp2.RequestHandler):
