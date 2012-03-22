@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+  </head>
+  <body>
+    <button id="start">start pipeline</button>
+    <a id="pipeline"></a>
+    <ul id="messages">
+    </ul>
+    <script type="text/javascript">
+      var channel_token = "{{ channel_token }}";
+      var channel = new goog.appengine.Channel(channel_token);
+      var socket = channel.open();
+      var last_message, last_li;
+      var spinner = ["-", "\\", "|", "/"];
+      var progress = 0;
+      socket.onmessage = function(message) {
+          if (message.data != last_message) {
+              progress = 0;
+              last_message = message.data;
+              last_li = $("<li>").text(message.data).appendTo("#messages");
+	  } else {
+	      progress = (progress + 1) % 4;
+	      last_li.text(last_message + ' ' +  spinner[progress]);
+	  }
+      };
+      $("#start").click(function() {
+	$.get("/start", function(data) {
+	    $("#start").hide();
+	    $("#pipeline").text("pipeline started").attr("href", data);
+	})
+      });
+    </script>
+  </body>
+</html>

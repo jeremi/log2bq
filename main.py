@@ -20,6 +20,8 @@ import logging
 
 from google.appengine.api import app_identity
 from google.appengine.api import memcache
+from google.appengine.api import channel
+from google.appengine.api import users
 
 import httplib2
 import webapp2
@@ -27,6 +29,10 @@ from apiclient.discovery import build
 from oauth2client.appengine import AppAssertionCredentials
 from mapreduce import base_handler, mapreduce_pipeline
 from mapreduce.lib import pipeline
+
+import jinja2
+jinja_environment = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
 
 credentials = AppAssertionCredentials(
     scope='https://www.googleapis.com/auth/bigquery')
@@ -42,17 +48,22 @@ class Log2Bq(base_handler.PipelineBase):
   """A pipeline to ingest log as CSV in Google Big Query
   """
 
-  def run(self, start_time, end_time, version_ids):
-    files = yield Log2Gs(start_time, end_time, version_ids)
+  def run(self, start_time, end_time, version_ids, user_id):
+    message = 'Log2Bq: ae://logs?versions=%sstart=%s&end=%s -> bq://%s/%s' % (version_ids, start_time, end_time, bqproject, bqdataset)
+    logging.debug(message)
+    channel.send_message(user_id, message)
+    files = yield Log2Gs(start_time, end_time, version_ids, user_id)
     date = time.strftime("%Y%m%d", time.localtime(start_time))
-    yield Gs2Bq(date, files)
+    yield Gs2Bq(date, files, user_id)
 
 class Log2Gs(base_handler.PipelineBase):
   """A pipeline to ingest log as CSV in Google Storage
   """
 
-  def run(self, start_time, end_time, version_ids):
-
+  def run(self, start_time, end_time, version_ids, user_id):
+    message = 'Log2Gs: ae://logs?versions=%sstart=%s&end=%s -> gs://%s' % (version_ids, start_time, end_time, gsbucketname)
+    logging.debug(message)
+    channel.send_message(user_id, message)
     yield mapreduce_pipeline.MapperPipeline(
         "log2bq",
         "main.log2csv",
@@ -71,24 +82,29 @@ class Gs2Bq(base_handler.PipelineBase):
   """A pipeline to injest log csv from Google Storage to Google  Big Query.
   """
 
-  def run(self, date, files):
+  def run(self, date, files, user_id):
     jobs = service.jobs()
     table = 'requestlogs_%s' % date
     gspaths = [f.replace('/gs/', 'gs://') for f in files]
     result = jobs.insert(projectId=bqproject,
                          body=jobData(table, gspaths)).execute()
-    logging.debug(result)
-    yield BqCheck(result['jobReference']['jobId'])
+    message = 'Gs2Bq(%s): %s -> bq://%s/%s' % (result['jobReference']['jobId'], gspaths, bqdataset, table)
+    logging.debug(message)
+    channel.send_message(user_id, message)
+    yield BqCheck(result['jobReference']['jobId'], user_id)
 
 class BqCheck(base_handler.PipelineBase):
-  def run(self, job):
+  def run(self, job, user_id):
     jobs = service.jobs()
     status = jobs.get(projectId=bqproject,
                       jobId=job).execute()
+    message = 'BqCheck(%s): %s' % (job, status['status']['state'])
+    logging.debug(message)
+    channel.send_message(user_id, message)
     if status['status']['state'] == 'PENDING' or status['status']['state'] == 'RUNNING':
-      delay = yield pipeline.common.Delay(seconds=10)
+      delay = yield pipeline.common.Delay(seconds=1)
       with pipeline.After(delay):
-        yield BqCheck(job)
+        yield BqCheck(job, user_id)
     else:
       yield pipeline.common.Return(status)
 
@@ -98,15 +114,32 @@ def log2csv(l):
                                       l.status, l.latency, l.response_size,
                                       l.user_agent)
 
+class MainHandler(webapp2.RequestHandler):
+  def get(self):
+    user = users.get_current_user()
+    if not user:
+      self.redirect(users.create_login_url(self.request.uri))
+      return
+
+    channel_token = channel.create_channel(user.user_id())
+    template_values = { 'channel_token': channel_token }
+    template = jinja_environment.get_template('index.html')
+    self.response.out.write(template.render(template_values))
+
 class StartHandler(webapp2.RequestHandler):
   def get(self):
+    user = users.get_current_user()
+    if not user:
+      self.redirect(users.create_login_url(self.request.uri))
+      return
+
     # TODO(proppy): add form/ui for start_time and end_time parameter
     now = time.time()
     yesterday = now - 3600 * 24
     major, minor = os.environ["CURRENT_VERSION_ID"].split(".")
-    pipeline = Log2Bq(yesterday, now, [major])
+    pipeline = Log2Bq(yesterday, now, [major], user.user_id())
     pipeline.start()
-    self.redirect(pipeline.base_path + "/status?root=" + pipeline.pipeline_id)
+    self.response.out.write("%s/status?root=%s" % (pipeline.base_path , pipeline.pipeline_id))
 
 def jobData(tableId, sourceUris):
   return {'projectId': bqproject,
@@ -157,10 +190,12 @@ def jobData(tableId, sourceUris):
                      'tableId': tableId
                      },
                   'createDisposition':'CREATE_IF_NEEDED',
-                  'writeDisposition':'WRITE_TRUNCATE',
+                  'writeDisposition':'WRITE_APPEND',
                   'encoding':'UTF-8'
                   }
               }
           }
 
-app = webapp2.WSGIApplication([('/',StartHandler)],debug=True)
+app = webapp2.WSGIApplication([('/', MainHandler),
+                               ('/start', StartHandler)],
+                               debug=True)
