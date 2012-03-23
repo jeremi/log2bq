@@ -7,7 +7,7 @@
     <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
     <style>
-      .label {
+      .label, .btn {
       text-transform: capitalize;
       }
       ul {
@@ -17,6 +17,9 @@
       .badge {
       margin-left: 5px;
       }
+      input[type=text] {
+      width: 700px;
+      }
     </style>
   </head>
   <body>
@@ -24,32 +27,74 @@
       <h1>log2bq</h1>
       <p>a simple demo of App Engine log ingestion into BigQuery</p>
       <p>
-	<button id="start" class="btn">start pipeline</button>
-	<ul id="messages">
-	</ul>
+	<button id="start" class="btn btn-primary">ingest log</button>
+	<div id="pipelines"></div>
+	<div id="query">
+	  <ul>
+	    <li><input type="text" name="query"></li>
+	    <li><a href="#" class="q">select status, count(*) as count from logs.requestlogs_20120322 group by status order by count desc limit 10;</a></li>
+	    <li><a href="#" class="q">select resource, count(*) as count from logs.requestlogs_20120322 group by resource order by count desc limit 10;</a></li>
+            <li><button id="run" class="btn btn-success">run query</button></li>
+	  </ul>
+	  <ul id="results"></div>	
+	</div>
       </p>
       <script type="text/javascript">
 	  var channel_token = "{{ channel_token }}";
 	  var channel = new goog.appengine.Channel(channel_token);
 	  var socket = channel.open();
-	  var last_message, last_li;
-	  var spinner = ["-", "\\", "|", "/"];
-	  var progress = 0;
+	  var last = {
+	  };
 	  socket.onmessage = function(message) {
-	      if (message.data != last_message) {
-		  progress = 0;
-		  last_message = message.data;
-		  last_li = $("<li>").html(message.data).appendTo("#messages");
+	      var data = message.data.split(",", 2);
+	      var pipeline = data[0];
+	      var snippet = data[1];
+	      var pipeline_ul = $("#" + pipeline);
+	      if (pipeline_ul.length == 0) {
+	        pipeline_ul = $("<ul>").attr("id", pipeline).appendTo("#pipelines");
+	        last[pipeline] = {}
+	      }
+	      if (snippet != last[pipeline]["snippet"]) {
+		  last[pipeline]["progress"] = 0;
+		  last[pipeline]["snippet"] = snippet;
+		  last[pipeline]["li"] = $("<li>").html(snippet).appendTo(pipeline_ul);
 	      } else {
-		  progress++;
-		  last_li.html(last_message + "<span class='badge>" + progress + "</span>");
+		  last[pipeline]["progress"]++;
+		  last[pipeline]["li"].html(last[pipeline]["snippet"] + "<span class='badge'>" + last[pipeline]["progress"] + "</span>");
 	      }
 	  };
 	  $("#start").click(function() {
 	    $.post("/start", function() {
-	      $("#start").hide();
 	    });
 	  });
+	  $("#run").click(function() {
+	    var query = $("input[name=query]").val();
+	    var li = $("<li>").prependTo("#results");
+	    var a = $("<a class='q' href='#'>").appendTo(li).text(query);
+	    var badge = $("<span class='badge'>").appendTo(li).text(0);
+            var start_time = new Date();
+	    var timer = setInterval(function() {
+	      badge.text((new Date() - start_time)/1000.0);
+	    }, 100);
+	    $.post("/query", {query: query}, function(data) {
+  	      clearInterval(timer);
+	      var result = JSON.parse(data);
+	      var table = $("<table class='table table-bordered table-striped table-condensed'>").attr("id", result.jobReference.jobId).appendTo(li);
+	      $.each(result.rows, function(i, row) {
+		  var tr = $("<tr>").appendTo(table);
+		  $.each(row.f, function(i, val) {
+		    $("<td>").appendTo(tr).text(val.v);
+		  });
+	      });
+	    }).error(function(xhr) {
+	     clearInterval(timer);
+	     var e = JSON.parse(xhr.responseText)
+	     $("<div class='alert alert-error'>").appendTo(li).text(e.error.message);
+            });
+	  });
+          $("#query").delegate("a.q", "click", function() {
+            $("input[name=query]").val($(this).text());
+          });
       </script>
     </div>
   </body>
