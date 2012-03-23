@@ -32,8 +32,8 @@
 	<div id="query">
 	  <ul>
 	    <li><input type="text" name="query"></li>
-	    <li><a href="#" class="q">select status, count(*) as count from logs.requestlogs_20120322 group by status order by count desc limit 10;</a></li>
-	    <li><a href="#" class="q">select resource, count(*) as count from logs.requestlogs_20120322 group by resource order by count desc limit 10;</a></li>
+	    <li><a href="#query" class="q">select status, count(*) as count from logs.requestlogs_20120322 group by status order by count desc limit 10;</a></li>
+	    <li><a href="#query" class="q">select resource, count(*) as count from logs.requestlogs_20120322 group by resource order by count desc limit 10;</a></li>
             <li><button id="run" class="btn btn-success">run query</button></li>
 	  </ul>
 	  <ul id="results"></div>	
@@ -70,7 +70,7 @@
 	  $("#run").click(function() {
 	    var query = $("input[name=query]").val();
 	    var li = $("<li>").prependTo("#results");
-	    var a = $("<a class='q' href='#'>").appendTo(li).text(query);
+	    var a = $("<a class='q' href='#query'>").appendTo(li).text(query);
 	    var badge = $("<span class='badge'>").appendTo(li).text(0);
             var start_time = new Date();
 	    var timer = setInterval(function() {
