@@ -87,7 +87,7 @@ class Log2Gs(base_handler.PipelineBase):
                 "end_time": end_time,
                 "version_ids": version_ids,
                 },
-            "output_reader" : {
+            "output_writer" : {
                 "filesystem": "gs",
                 "gs_bucket_name": gsbucketname,
                 },
