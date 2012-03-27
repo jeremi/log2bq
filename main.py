@@ -99,10 +99,10 @@ def log2csv(l):
   """Convert log API RequestLog object to csv."""
   root_pipeline_id = context.get().mapreduce_spec.mapper.params['root_pipeline_id']
   message(root_pipeline_id, '<span class="label label-warning">pending</span> MapperPipeline.log2csv')
-  yield '%s,%s,%s,%s,%s,%s,%s,"%s"\n' % (l.start_time, l.method, l.resource,
-                                      l.status, l.latency, l.response_size,
-                                      l.was_loading_request,
-                                      l.user_agent)
+  yield '%s,%s,%s,%s,%s,%s,%s,%s,"%s",%s\n' % (l.start_time, l.method, l.resource,
+                                            l.status, l.latency, l.response_size,
+                                            l.was_loading_request, l.cost,
+                                            l.user_agent, l.nickname)
 
 class Gs2Bq(base_handler.PipelineBase):
   """A pipeline to ingest log csv from Google Storage to Google BigQuery.
@@ -154,7 +154,8 @@ class MainHandler(webapp2.RequestHandler):
     memcache.set('client_id', client_id)
 
     channel_token = channel.create_channel(client_id)
-    template_values = { 'channel_token': channel_token }
+    template_values = { 'channel_token': channel_token,
+                        'date': time.strftime("%Y%m%d", time.localtime(time.time())) }
     
     template = jinja_environment.get_template('index.html')
     self.response.out.write(template.render(template_values))
@@ -163,9 +164,9 @@ class StartHandler(webapp2.RequestHandler):
   def post(self):
     # TODO(proppy): add form/ui for start_time and end_time parameter
     now = time.time()
-    min1hour = now - 3600 * 1
+    yesterday = now - 3600 * 24
     major, minor = os.environ["CURRENT_VERSION_ID"].split(".")
-    p = Log2Bq(min1hour, now, [major])
+    p = Log2Bq(yesterday, now, [major])
     p.start()
 
 class QueryHandler(webapp2.RequestHandler):
@@ -219,12 +220,22 @@ def jobData(tableId, sourceUris):
                               },
                           {
                               'name':'loading_request',
-                              'type':'BOOLEAN'
+                              'type':'BOOLEAN',
+                              'mode':'REQUIRED',
+                              },
+                          {
+                              'name':'cost',
+                              'type':'FLOAT',
+                              'mode':'REQUIRED',
                               },
                           {
                               'name':'user_agent',
-                              'type':'STRING'
-                              }
+                              'type':'STRING',
+                              },
+                          {
+                              'name':'nickname',
+                              'type':'STRING',
+                              },
                           ]
                       },
                   'destinationTable':{
