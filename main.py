@@ -82,11 +82,15 @@ class Log2Gs(base_handler.PipelineBase):
         "mapreduce.input_readers.LogInputReader",
         output_writer_spec="mapreduce.output_writers.FileOutputWriter",
         params={
-            "start_time": start_time,
-            "end_time": end_time,
-            "version_ids": version_ids,
-            "filesystem": "gs",
-            "gs_bucket_name": gsbucketname,
+            "input_reader" : {
+                "start_time": start_time,
+                "end_time": end_time,
+                "version_ids": version_ids,
+                },
+            "output_reader" : {
+                "filesystem": "gs",
+                "gs_bucket_name": gsbucketname,
+                },
             "root_pipeline_id": self.root_pipeline_id,
             },
         shards=16)
