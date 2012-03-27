@@ -99,10 +99,11 @@ def log2csv(l):
   """Convert log API RequestLog object to csv."""
   root_pipeline_id = context.get().mapreduce_spec.mapper.params['root_pipeline_id']
   message(root_pipeline_id, '<span class="label label-warning">pending</span> MapperPipeline.log2csv')
-  yield '%s,%s,%s,%s,%s,%s,%s,%s,"%s",%s\n' % (l.start_time, l.method, l.resource,
-                                            l.status, l.latency, l.response_size,
-                                            l.was_loading_request, l.cost,
-                                            l.user_agent, l.nickname)
+  yield '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' % (l.start_time, l.method, l.resource,
+                                             l.status, l.latency, l.response_size,
+                                             l.was_loading_request, l.cost,
+                                             '"%s"' % l.user_agent if l.user_agent else "NULL",
+                                             l.nickname if l.nickname else "NULL")
 
 class Gs2Bq(base_handler.PipelineBase):
   """A pipeline to ingest log csv from Google Storage to Google BigQuery.
@@ -153,9 +154,12 @@ class MainHandler(webapp2.RequestHandler):
     client_id = "%s" % user.user_id()
     memcache.set('client_id', client_id)
 
+    now = time.time()
+    yesterday = now - 3600 * 24
+
     channel_token = channel.create_channel(client_id)
     template_values = { 'channel_token': channel_token,
-                        'date': time.strftime("%Y%m%d", time.localtime(time.time())) }
+                        'date': time.strftime("%Y%m%d", time.localtime(yesterday)) }
     
     template = jinja_environment.get_template('index.html')
     self.response.out.write(template.render(template_values))
