@@ -80,11 +80,22 @@
   	      clearInterval(timer);
 	      var result = JSON.parse(data);
 	      var table = $("<table class='table table-bordered table-striped table-condensed'>").attr("id", result.jobReference.jobId).appendTo(li);
+	      var ref;
 	      $.each(result.rows, function(i, row) {
 		  var tr = $("<tr>").appendTo(table);
 		  $.each(row.f, function(i, val) {
 		    $("<td>").appendTo(tr).text(val.v);
 		  });
+		  if (query.toLowerCase().indexOf("desc") != -1) {
+		    if (row.f.length == 2) {
+			if (ref == undefined) {
+			   ref = row.f[1].v;
+			}
+			var p = 100 * row.f[1].v / ref;
+		        var gradient = "-webkit-linear-gradient(left , #FFA " + p + "%, transparent " + p + "%)";
+			$("td:first", tr).css("background-image", gradient)
+		    }
+		  }
 	      });
 	    }).error(function(xhr) {
 	     clearInterval(timer);
