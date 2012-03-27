@@ -95,8 +95,9 @@ def log2csv(l):
   """Convert log API RequestLog object to csv."""
   root_pipeline_id = context.get().mapreduce_spec.mapper.params['root_pipeline_id']
   message(root_pipeline_id, '<span class="label label-warning">pending</span> MapperPipeline.log2csv')
-  yield '%s,%s,%s,%s,%s,%s,"%s"\n' % (l.start_time, l.method, l.resource,
+  yield '%s,%s,%s,%s,%s,%s,%s,"%s"\n' % (l.start_time, l.method, l.resource,
                                       l.status, l.latency, l.response_size,
+                                      l.was_loading_request,
                                       l.user_agent)
 
 class Gs2Bq(base_handler.PipelineBase):
@@ -211,6 +212,10 @@ def jobData(tableId, sourceUris):
                               'name':'response_size',
                               'type':'INTEGER',
                               'mode':'REQUIRED',
+                              },
+                          {
+                              'name':'loading_request',
+                              'type':'BOOLEAN'
                               },
                           {
                               'name':'user_agent',
