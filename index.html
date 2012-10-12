@@ -31,16 +31,16 @@
 	<div id="pipelines"></div>
 	<div id="query">
 	  <ul>
-	    <li><a href="#query" class="q">select status, count(*) as count from logs.requestlogs_{{ date }} group by status order by count desc limit 10;</a></li>
-	    <li><a href="#query" class="q">select resource, count(*) as count from logs.requestlogs_{{ date }} group by resource order by count desc limit 10;</a></li>
-	    <li><a href="#query" class="q">select resource, AVG(latency) as latency from logs.requestlogs_{{ date }} group by resource order by latency desc limit 10;</a></li>
-	    <li><a href="#query" class="q">select resource, AVG(cost) as cost from logs.requestlogs_{{ date }} group by resource order by cost desc limit 10;</A></li>
+	    <li><a href="#query" class="q">select status, count(*) as count from {{ bqdataset }}.requestlogs_{{ date }} group by status order by count desc limit 10;</a></li>
+	    <li><a href="#query" class="q">select resource, count(*) as count from {{ bqdataset }}.requestlogs_{{ date }} group by resource order by count desc limit 10;</a></li>
+	    <li><a href="#query" class="q">select resource, AVG(latency) as latency from {{ bqdataset }}.requestlogs_{{ date }} group by resource order by latency desc limit 10;</a></li>
+	    <li><a href="#query" class="q">select resource, AVG(cost) as cost from {{ bqdataset }}.requestlogs_{{ date }} group by resource order by cost desc limit 10;</A></li>
 	  </ul>
 	  <ul>
 	    <li><input type="text" name="query"></li>
             <li><button id="run" class="btn btn-success">run query</button></li>
 	  </ul>
-	  <ul id="results"></div>	
+	  <ul id="results"></ul>
 	</div>
       </p>
       <script type="text/javascript">

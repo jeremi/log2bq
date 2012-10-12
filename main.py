@@ -160,7 +160,8 @@ class MainHandler(webapp2.RequestHandler):
 
     channel_token = channel.create_channel(client_id)
     template_values = { 'channel_token': channel_token,
-                        'date': time.strftime("%Y%m%d", time.localtime(yesterday)) }
+                        'date': time.strftime("%Y%m%d", time.localtime(yesterday)),
+                        'bqdataset': bqdataset}
     
     template = jinja_environment.get_template('index.html')
     self.response.out.write(template.render(template_values))
@@ -170,8 +171,6 @@ class StartHandler(webapp2.RequestHandler):
     # TODO(proppy): add form/ui for start_time and end_time parameter
     now = time.time()
     yesterday = now - 3600 * 24
-    major, minor = os.environ["CURRENT_VERSION_ID"].split(".")
-    p = Log2Bq(yesterday, now, [major])
     p = Log2Bq(yesterday, now, [appengine_version])
     p.start()
 
