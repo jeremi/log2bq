@@ -44,6 +44,7 @@ bqproject = '34784107592'
 bqdataset = 'logs'
 bqtable = 'requestlogs_%s'
 gsbucketname = 'log2bq_logs'
+appengine_version = "1"
 
 http = credentials.authorize(httplib2.Http(memcache))
 service = build('bigquery','v2',http=http)
@@ -171,6 +172,7 @@ class StartHandler(webapp2.RequestHandler):
     yesterday = now - 3600 * 24
     major, minor = os.environ["CURRENT_VERSION_ID"].split(".")
     p = Log2Bq(yesterday, now, [major])
+    p = Log2Bq(yesterday, now, [appengine_version])
     p.start()
 
 class QueryHandler(webapp2.RequestHandler):
