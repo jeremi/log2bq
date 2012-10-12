@@ -12,6 +12,7 @@ handlers:
   static_dir: bootstrap
 - url: .*
   script: main.app
+  login: admin
 
 libraries:
 - name: webapp2
